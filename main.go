@@ -33,14 +33,14 @@ func computeHash(content string) (string, int, error) {
 	return base64.StdEncoding.EncodeToString(hash), hasher.Size(), nil
 }
 
-func saveRegister(db *sql.DB) error {
-	rows, err := db.Query("SELECT * FROM registers;")
+func saveRegister(action string, db *sql.DB) error {
+	_, err := db.Exec("INSERT INTO registers (action) VALUES (?)", action)
 
 	if err != nil {
 		return err
 	}
 
-	log.Printf("%#v", rows)
+	log.Printf("action registered successfully")
 
 	return nil
 }
@@ -132,6 +132,11 @@ func main() {
 			return
 		}
 
+		if err = saveRegister("ENCODE", db); err != nil {
+			handleError(err, http.StatusInternalServerError, w)
+			return
+		}
+
 		w.Write(rawResponse)
 	})
 
@@ -164,6 +169,11 @@ func main() {
 
 		if hash != verifyHashPayload.Hash {
 			handleError(errors.New("hashes dont match"), http.StatusUnauthorized, w)
+			return
+		}
+
+		if err = saveRegister("VERIFY", db); err != nil {
+			handleError(err, http.StatusInternalServerError, w)
 			return
 		}
 
