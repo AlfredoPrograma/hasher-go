@@ -73,7 +73,7 @@ func automigrate(db *sql.DB) error {
 
 func main() {
 	port := os.Args[1]
-	db, err := sql.Open("sqlite3", "db.sqlite")
+	db, err := sql.Open("sqlite3", "./data/db.sqlite")
 
 	if err != nil {
 		log.Fatalln("cannot connect to database")
