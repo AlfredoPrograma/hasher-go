@@ -2,13 +2,17 @@ package main
 
 import (
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func handleError(err error, statusCode int, w http.ResponseWriter) {
@@ -29,9 +33,59 @@ func computeHash(content string) (string, int, error) {
 	return base64.StdEncoding.EncodeToString(hash), hasher.Size(), nil
 }
 
+func saveRegister(db *sql.DB) error {
+	rows, err := db.Query("SELECT * FROM registers;")
+
+	if err != nil {
+		return err
+	}
+
+	log.Printf("%#v", rows)
+
+	return nil
+}
+
+func automigrate(db *sql.DB) error {
+	migrations, err := os.ReadDir("./migrations")
+
+	if err != nil {
+		return err
+	}
+
+	for _, f := range migrations {
+		m, err := os.ReadFile(fmt.Sprintf("./migrations/%s", f.Name()))
+
+		if err != nil {
+			return err
+		}
+
+		_, err = db.Exec(string(m))
+
+		if err != nil {
+			return err
+		}
+	}
+
+	log.Println("all migrations were ran successfully")
+
+	return nil
+}
+
 func main() {
 	port := os.Args[1]
+	db, err := sql.Open("sqlite3", "db.sqlite")
 
+	if err != nil {
+		log.Fatalln("cannot connect to database")
+		return
+	}
+
+	if err = automigrate(db); err != nil {
+		log.Fatalln(err)
+		return
+	}
+
+	// HTTP HANDLER
 	http.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		log.Println("(HANDLER): GET /")
 		w.Write([]byte("Hello world"))
